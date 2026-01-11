@@ -30,16 +30,21 @@ const PROMPT = [
   "• Если текст содержит грубость/конфликт — сохрани смысл, но сделай формулировку максимально корректной и деловой, не добавляя новых обвинений.",
 ].join("\n");
 
-export default async function handler(req, res) {
-  // GET для проверки “жив ли endpoint”
+async function readJson(req) {
+  if (req.body) return req.body;
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks).toString("utf8");
+  return raw ? JSON.parse(raw) : null;
+}
+
+module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(200).send("ok");
 
   const secret = req.headers["x-telegram-bot-api-secret-token"];
-  if (!secret || secret !== process.env.BOT_SECRET) {
-    return res.status(403).send("forbidden");
-  }
+  if (!secret || secret !== process.env.BOT_SECRET) return res.status(403).send("forbidden");
 
-  const update = req.body;
+  const update = await readJson(req);
   const chatId = update?.message?.chat?.id;
   const text = update?.message?.text;
   if (!chatId || !text) return res.status(200).send("ok");
@@ -71,4 +76,4 @@ export default async function handler(req, res) {
   });
 
   return res.status(200).send("ok");
-}
+};
